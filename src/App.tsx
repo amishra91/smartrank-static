@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Analytics } from "@vercel/analytics/react"
 
 const features = [
   {
@@ -256,6 +257,7 @@ export default function App() {
 
   return (
     <>
+    <Analytics/> 
       <div className="ambient-glow glow-1"></div>
       <div className="ambient-glow glow-2"></div>
       <div className="grid-overlay"></div>
