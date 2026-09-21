@@ -72,26 +72,10 @@ const examStreams = [
   { title: 'Many more' },
 ];
 
-const getTargetLaunchTime = () => {
-  const key = 'smartrank_target_launch';
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed > Date.now()) {
-        return parsed;
-      }
-    }
-    const target = Date.now() + (24 * 86400 + 18 * 3600 + 45 * 60) * 1000;
-    localStorage.setItem(key, target.toString());
-    return target;
-  } catch {
-    return Date.now() + (24 * 86400 + 18 * 3600 + 45 * 60) * 1000;
-  }
-};
+const TARGET_LAUNCH_DATE = new Date('2026-10-15T10:00:00+05:30').getTime();
 
-const calculateTimeLeft = (targetTime: number) => {
-  const diff = targetTime - Date.now();
+const calculateTimeLeft = () => {
+  const diff = TARGET_LAUNCH_DATE - Date.now();
   if (diff <= 0) {
     return { days: '00', hours: '00', minutes: '00', seconds: '00' };
   }
@@ -111,12 +95,11 @@ const calculateTimeLeft = (targetTime: number) => {
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const targetTimeRef = useRef<number>(getTargetLaunchTime());
-  const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft(targetTimeRef.current));
+  const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft());
 
   useEffect(() => {
     const updateCountdown = () => {
-      setTimeLeft(calculateTimeLeft(targetTimeRef.current));
+      setTimeLeft(calculateTimeLeft());
     };
 
     updateCountdown();
