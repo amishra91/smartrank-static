@@ -35,22 +35,17 @@ function renderConfirmationEmail(name: string) {
         <td align="center" style="padding:40px 16px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
             <tr>
-              <td style="padding:0 8px 24px 8px;">
-                <a href="https://hunarmind.com/smartrank" style="display:inline-block; text-decoration:none;">
-                  <img src="https://www.thesmartrank.com/smartrank-logo.svg" width="160" height="34" alt="SmartRank" style="display:block; width:160px; height:auto; border:0;" />
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td style="background-color:${brand.card}; border:1px solid ${brand.border}; border-radius:14px; padding:40px;">
+              <td style="background-color:${brand.card}; border:1px solid ${brand.border}; border-radius:14px; padding:36px 36px 40px 36px;">
+                <div style="margin:0 0 24px 0; padding-bottom:20px; border-bottom:1px solid ${brand.border};">
+                  <a href="https://hunarmind.com/smartrank" style="display:inline-block; text-decoration:none;">
+                    <img src="https://www.thesmartrank.com/smartrank-logo.svg" width="180" height="38" alt="SmartRank" style="display:block; width:180px; height:auto; border:0;" />
+                  </a>
+                </div>
                 <p style="margin:0 0 16px 0; font-family:${fontStack}; font-size:16px; line-height:1.6; color:${brand.ink};">
                   Hi ${escapeHtml(firstName)},
                 </p>
-                <p style="margin:0 0 16px 0; font-family:${fontStack}; font-size:15px; line-height:1.6; color:${brand.ink};">
+                <p style="margin:0 0 20px 0; font-family:${fontStack}; font-size:15px; line-height:1.6; color:${brand.ink};">
                   Thank you for registering for SmartRank. 💜
-                </p>
-                <p style="margin:0 0 24px 0; font-family:${fontStack}; font-size:15px; line-height:1.6; color:${brand.muted};">
-                  You didn't just sign up for another exam-prep platform. You got in before launch &mdash; and that comes with a little something extra.
                 </p>
                 <div style="background-color:${brand.background}; border:1px solid ${brand.border}; border-radius:12px; padding:20px 24px; margin:0 0 24px 0;">
                   <p style="margin:0 0 8px 0; font-family:${fontStack}; font-size:16px; font-weight:700; color:${brand.purple};">
@@ -78,7 +73,7 @@ function renderConfirmationEmail(name: string) {
             <tr>
               <td style="padding:24px 8px 0 8px;">
                 <p style="margin:0; font-family:${fontStack}; font-size:12px; line-height:1.6; color:${brand.muted};">
-                  SmartRank by Hunarmind Technologies &middot; Dedicated competitive exam intelligence
+                  SmartRank &middot; Dedicated competitive exam intelligence
                 </p>
               </td>
             </tr>
@@ -93,8 +88,6 @@ function renderConfirmationEmail(name: string) {
     `Hi ${firstName},`,
     '',
     'Thank you for registering for SmartRank. 💜',
-    '',
-    `You didn't just sign up for another exam-prep platform. You got in before launch — and that comes with a little something extra.`,
     '',
     '🎁 Your early-bird benefit is unlocked',
     '',
@@ -145,7 +138,15 @@ function earlyAccessPlugin(env: Record<string, string>): Plugin {
                   return;
                 }
 
-                const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY || 're_THsNqoFU_7fw5Y2i5CbGJXq2AJvcejSzj';
+                const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+                if (!apiKey) {
+                  console.error('RESEND_API_KEY is not configured');
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'RESEND_API_KEY is not configured' }));
+                  return;
+                }
+
                 const fromEmail = env.CONTACT_FROM_EMAIL || process.env.CONTACT_FROM_EMAIL || 'Hunarmind <no-reply@hunarmind.com>';
                 const toEmail = env.CONTACT_TO_EMAIL || process.env.CONTACT_TO_EMAIL || 'hello@hunarmind.com';
 
@@ -160,7 +161,8 @@ function earlyAccessPlugin(env: Record<string, string>): Plugin {
                   body: JSON.stringify({
                     from: fromEmail,
                     to: [email],
-                    subject: 'Your early-bird benefit is unlocked 🎁 | SmartRank',
+                    reply_to: toEmail,
+                    subject: 'Your early-bird benefit is unlocked | SmartRank',
                     html: confirmation.html,
                     text: confirmation.text,
                   }),
