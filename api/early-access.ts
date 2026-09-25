@@ -1,5 +1,13 @@
-import { defineConfig, loadEnv, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
+const brand = {
+  purple: '#6939fa',
+  ink: '#101012',
+  muted: '#6c6c74',
+  border: '#e6e6ea',
+  background: '#f4f4f6',
+  card: '#ffffff',
+};
+
+const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 function escapeHtml(value: string) {
   return value
@@ -12,15 +20,6 @@ function escapeHtml(value: string) {
 
 function renderConfirmationEmail(name: string) {
   const firstName = name.trim().split(' ')[0] || name;
-  const brand = {
-    purple: '#6939fa',
-    ink: '#101012',
-    muted: '#6c6c74',
-    border: '#e6e6ea',
-    background: '#f4f4f6',
-    card: '#ffffff',
-  };
-  const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -108,100 +107,133 @@ function renderConfirmationEmail(name: string) {
   return { html, text };
 }
 
-function earlyAccessPlugin(env: Record<string, string>): Plugin {
-  return {
-    name: 'early-access-api',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const url = req.originalUrl || req.url || '';
-        if (url === '/api/early-access' || url.startsWith('/api/early-access?') || url.startsWith('/api/early-access/')) {
-          if (req.method === 'OPTIONS') {
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-            res.statusCode = 200;
-            res.end();
-            return;
-          }
+export default async function handler(req: any, res?: any) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-          if (req.method === 'POST') {
-            let rawBody = '';
-            req.on('data', (chunk: any) => {
-              rawBody += chunk;
-            });
+  const isWebRequest = typeof Request !== 'undefined' && req instanceof Request;
 
-            req.on('end', async () => {
-              try {
-                const data = JSON.parse(rawBody || '{}');
-                const name = String(data.name || '').trim();
-                const email = String(data.email || '').trim().toLowerCase();
-                const examStream = String(data.examStream || '').trim();
-                const targetYear = String(data.targetYear || '').trim();
+  if (isWebRequest) {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 200, headers: corsHeaders });
+    }
+  } else if (req.method === 'OPTIONS') {
+    if (res?.setHeader) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.status(200).end();
+    }
+  }
 
-                if (!name || !email) {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Name and email are required' }));
-                  return;
-                }
-
-                const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY || 're_THsNqoFU_7fw5Y2i5CbGJXq2AJvcejSzj';
-                const fromEmail = env.CONTACT_FROM_EMAIL || process.env.CONTACT_FROM_EMAIL || 'Hunarmind <no-reply@hunarmind.com>';
-                const toEmail = env.CONTACT_TO_EMAIL || process.env.CONTACT_TO_EMAIL || 'hello@hunarmind.com';
-
-                const confirmation = renderConfirmationEmail(name);
-
-                await fetch('https://api.resend.com/emails', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    from: fromEmail,
-                    to: [email],
-                    subject: 'Your early-bird benefit is unlocked 🎁 | SmartRank',
-                    html: confirmation.html,
-                    text: confirmation.text,
-                  }),
-                });
-
-                await fetch('https://api.resend.com/emails', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    from: fromEmail,
-                    to: [toEmail],
-                    reply_to: email,
-                    subject: `SmartRank Early Access Request: ${name}`,
-                    text: `New early access request:\nName: ${name}\nEmail: ${email}\nTarget Exam: ${examStream || 'N/A'}\nTarget Cycle: ${targetYear || 'N/A'}`,
-                  }),
-                }).catch(() => {});
-
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ ok: true }));
-              } catch (err: any) {
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: err?.message || 'Internal server error' }));
-              }
-            });
-            return;
-          }
-        }
-        next();
+  let body: any = null;
+  if (isWebRequest) {
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    },
-  };
-}
+    }
+  } else {
+    body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = null;
+      }
+    }
+  }
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  return {
-    plugins: [react(), earlyAccessPlugin(env)],
-  };
-});
+  if (!body || typeof body !== 'object') {
+    if (isWebRequest) {
+      return new Response(JSON.stringify({ error: 'Missing request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    return res.status(400).json({ error: 'Missing request body' });
+  }
+
+  const { name, email, examStream, targetYear } = body;
+
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    if (isWebRequest) {
+      return new Response(JSON.stringify({ error: 'Please enter a valid name' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    return res.status(400).json({ error: 'Please enter a valid name' });
+  }
+
+  if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (isWebRequest) {
+      return new Response(JSON.stringify({ error: 'Please enter a valid email address' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    return res.status(400).json({ error: 'Please enter a valid email address' });
+  }
+
+  const apiKey = process.env.RESEND_API_KEY || 're_THsNqoFU_7fw5Y2i5CbGJXq2AJvcejSzj';
+  const fromEmail = process.env.CONTACT_FROM_EMAIL || 'Hunarmind <no-reply@hunarmind.com>';
+  const toEmail = process.env.CONTACT_TO_EMAIL || 'hello@hunarmind.com';
+
+  const confirmation = renderConfirmationEmail(name);
+
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [email.trim().toLowerCase()],
+        subject: 'Your early-bird benefit is unlocked 🎁 | SmartRank',
+        html: confirmation.html,
+        text: confirmation.text,
+      }),
+    });
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [toEmail],
+        reply_to: email.trim().toLowerCase(),
+        subject: `SmartRank Early Access Request: ${name.trim()}`,
+        text: `New early access request:\nName: ${name.trim()}\nEmail: ${email.trim()}\nTarget Exam: ${examStream || 'N/A'}\nTarget Cycle: ${targetYear || 'N/A'}`,
+      }),
+    }).catch(() => {});
+
+    if (isWebRequest) {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Failed to send email via Resend', error);
+    if (isWebRequest) {
+      return new Response(JSON.stringify({ error: 'Failed to send confirmation email' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    return res.status(500).json({ error: 'Failed to send confirmation email' });
+  }
+}

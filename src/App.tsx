@@ -98,6 +98,65 @@ const calculateTimeLeft = () => {
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft());
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    examStream: 'UPSC Civil Services (CSE)',
+    targetYear: '2026',
+  });
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    try {
+      return localStorage.getItem('smartrank_early_access_submitted') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.email.trim()) return;
+    setIsSubmitting(true);
+
+    try {
+      await fetch('/api/early-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+    } catch {
+    } finally {
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+      try {
+        localStorage.setItem('smartrank_early_access_submitted', 'true');
+        localStorage.setItem('smartrank_early_access_data', JSON.stringify(formData));
+      } catch {
+      }
+    }
+  };
+
+  const handleResetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      examStream: 'UPSC Civil Services (CSE)',
+      targetYear: '2026',
+    });
+    setIsSubmitted(false);
+    try {
+      localStorage.removeItem('smartrank_early_access_submitted');
+      localStorage.removeItem('smartrank_early_access_data');
+    } catch {
+    }
+  };
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -278,13 +337,20 @@ export default function App() {
               href="https://hunarmind.com/smartrank"
               target="_blank"
               rel="noopener noreferrer"
-              className="nav-btn nav-btn-primary"
+              className="nav-btn nav-btn-outline"
+              title="Explore on Hunarmind"
+              aria-label="Explore on Hunarmind"
             >
-              <span>Explore on Hunarmind</span>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <span className="btn-text-full">Explore on Hunarmind</span>
+              <span className="btn-text-short">Hunarmind</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="7" y1="17" x2="17" y2="7"></line>
                 <polyline points="7 7 17 7 17 17"></polyline>
               </svg>
+            </a>
+            <a href="#early-access" className="nav-btn nav-btn-primary">
+              <span className="btn-text-full">Request Early Access</span>
+              <span className="btn-text-short">Early Access</span>
             </a>
           </div>
         </header>
@@ -300,7 +366,7 @@ export default function App() {
           </h1>
 
           <p className="hero-subtitle">
-            Authentic exam-condition mock environments, adaptive syllabus diagnostics, and calibrated rank analytics across 100+ national and state competitive examinations.
+            Authentic exam-condition mock environments, adaptive syllabus diagnostics, and calibrated rank analytics across 400+ national and state competitive examinations.
           </p>
 
           <div className="motto-banner">
@@ -330,6 +396,16 @@ export default function App() {
             </div>
           </div>
 
+          <div className="hero-cta-wrapper">
+            <a href="#early-access" className="hero-cta-btn">
+              <span>Request Early Access</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+            </a>
+          </div>
+
           <div className="hunarmind-banner">
             <div className="banner-left">
               <div className="hunarmind-logo-icon">
@@ -347,7 +423,7 @@ export default function App() {
               className="banner-btn"
             >
               <span>hunarmind.com/smartrank</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="7" y1="17" x2="17" y2="7"></line>
                 <polyline points="7 7 17 7 17 17"></polyline>
               </svg>
@@ -391,6 +467,146 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          <section id="early-access" className="early-access-section">
+            <span className="section-eyebrow">Priority Waitlist</span>
+            <h2 className="section-title">Request Early Access</h2>
+            <p className="section-desc">
+              Get reserved access to our calibrated mock engine, adaptive diagnostic roadmaps, and authentic PYQ solutions before the public launch.
+            </p>
+
+            <div className="early-access-card">
+              {isSubmitted ? (
+                <div className="early-access-success">
+                  <div className="success-icon-badge">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <h3>You&apos;re on the Priority Waitlist!</h3>
+                  <p className="success-message">
+                    Thank you, <span className="highlight-text">{formData.name || 'Candidate'}</span>. Your early access request for <span className="highlight-text">{formData.examStream} ({formData.targetYear})</span> has been received. We will send your private invite and onboarding diagnostic link to <span className="highlight-text">{formData.email}</span> when candidate batches open.
+                  </p>
+                  <button type="button" onClick={handleResetForm} className="reset-btn">
+                    Register Another Candidate
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleFormSubmit} className="early-access-form">
+                  <div className="form-group">
+                    <label htmlFor="candidate-name" className="form-label">
+                      Candidate Name
+                    </label>
+                    <input
+                      id="candidate-name"
+                      type="text"
+                      name="name"
+                      required
+                      placeholder="e.g. Abhishek Sharma"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="candidate-email" className="form-label">
+                      Email Address
+                    </label>
+                    <input
+                      id="candidate-email"
+                      type="email"
+                      name="email"
+                      required
+                      placeholder="e.g. candidate@example.com"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="target-exam" className="form-label">
+                      Target Examination
+                    </label>
+                    <select
+                      id="target-exam"
+                      name="examStream"
+                      value={formData.examStream}
+                      onChange={handleInputChange}
+                      className="form-select"
+                    >
+                      <option value="UPSC Civil Services (CSE)">UPSC Civil Services (CSE)</option>
+                      <option value="SSC CGL / CHSL">SSC CGL / CHSL</option>
+                      <option value="Banking (IBPS PO, SBI PO, RBI)">Banking (IBPS PO, SBI PO, RBI)</option>
+                      <option value="Railways & Defense (RRB, NDA, CDS)">Railways &amp; Defense (RRB, NDA, CDS)</option>
+                      <option value="State PSC (UPPSC, BPSC, MPSC, etc.)">State PSC (UPPSC, BPSC, MPSC, etc.)</option>
+                      <option value="GATE / Engineering Services">GATE / Engineering Services</option>
+                      <option value="Other Competitive Examination">Other Competitive Examination</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="target-year" className="form-label">
+                      Target Exam Cycle
+                    </label>
+                    <select
+                      id="target-year"
+                      name="targetYear"
+                      value={formData.targetYear}
+                      onChange={handleInputChange}
+                      className="form-select"
+                    >
+                      <option value="2026">2026 Exam Cycle</option>
+                      <option value="2027">2027 Exam Cycle</option>
+                      <option value="2028+">2028 or Later</option>
+                    </select>
+                  </div>
+
+                  <div className="form-submit-group">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="early-access-submit-btn"
+                    >
+                      {isSubmitting ? (
+                        <span>Reserving Your Spot...</span>
+                      ) : (
+                        <>
+                          <span>Request Priority Early Access</span>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="early-access-perks">
+                <div className="perk-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Zero Cost During Beta Cohort</span>
+                </div>
+                <div className="perk-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Priority Diagnostic Baseline</span>
+                </div>
+                <div className="perk-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Direct Feedback Channel</span>
+                </div>
+              </div>
+            </div>
+          </section>
         </main>
 
         <footer>
@@ -407,6 +623,9 @@ export default function App() {
           </div>
 
           <div className="footer-links">
+            <a href="#early-access" className="footer-link">
+              Request Early Access
+            </a>
             <a href="https://hunarmind.com/smartrank" target="_blank" rel="noopener noreferrer" className="footer-link">
               SmartRank on Hunarmind
             </a>
